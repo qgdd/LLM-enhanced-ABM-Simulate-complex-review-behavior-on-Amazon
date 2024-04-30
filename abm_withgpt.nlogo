@@ -142,7 +142,7 @@ to-report gpt
     "    return '; '.join(map(str, knowledge))"
   )
   py:set "comments" py:runresult"list_to_str(knowledge)"
-
+  py:run "client = OpenAI(api_key=' ### ')"
   (py:run
     "def generate_review(comments):"
     "    input_text = comments + prompt"
