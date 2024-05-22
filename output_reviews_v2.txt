@@ -1,0 +1,97 @@
+
+
+
+import os
+import time
+import pandas as pd
+from openai import OpenAI
+
+# 初始化OpenAI客户端
+client = OpenAI(
+    api_key='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'  # 确保使用安全方式管理API密钥
+)
+
+data_path = './data/split_datasets/split_1.csv'
+
+# 从CSV文件中读取数据
+data = pd.read_csv(data_path)
+
+
+# 定义函数以生成对整个文件的综合评价
+def generate_comprehensive_review(data):
+    reviews_text = "\n".join(data['reviewText'].astype(str))  # 将所有评论文本合并为一个大的字符串
+    summaries_text = "\n".join(data['summary'].astype(str))  # 将所有摘要合并为一个大的字符串
+    overall_ratings = data['overall'].mean()  # 计算平均评分
+
+    # 构建输入文本
+    input_text = f"Collected Review Texts:\n{reviews_text}\n\nCollected Summaries:\n{summaries_text}\n\nAverage Rating: {overall_ratings}\n###\n\nBased on the collected review texts, summaries, and the average rating, please provide a comprehensive analysis of the overall customer satisfaction and product quality."
+
+    # 请求模型生成文本
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system",
+                 "content": "You are an assistant that provides comprehensive analysis based on multiple reviews. Analyze the key themes, common issues, and overall sentiment from these reviews."},
+                {"role": "user", "content": input_text}
+            ],
+            max_tokens=500
+        )
+        return response.choices[0].message
+    except Exception as e:
+        if 'insufficient_quota' in str(e):
+            print("Rate limit exceeded, waiting 10 s...")
+            time.sleep(10)
+            return generate_comprehensive_review(data)  # Retry
+        else:
+            print(f"An error occurred: {e}")
+            return None
+
+
+# 生成综合评论并保存到文件
+comprehensive_review = generate_comprehensive_review(data)
+if comprehensive_review:
+    with open('output_reviews_v2.txt', 'w') as outfile:
+        outfile.write(f"{comprehensive_review}\n\n")
+
+
+hatCompletionMessage(content="**Key Themes:**\n1.
+ **Fit and Comfort:** Several reviews highlight
+ the good fit and comfort of the Levi's 501 jeans,
+ with some mentioning that they fit well in all the
+ right places.\n  \n2. **Shrinkage and Material:**
+ There are mixed experiences regarding shrinkage,
+ with some mentioning drastic shrinkage after washing,
+  while others appreciate the rigidity and durability
+  of the fabric.\n  \n3. **Quality Concerns:** Common
+  issues cited include poor quality control, such as
+   bad seams, rough hems, broken belt loops, and light-weight,
+   see-through material. Some reviewers mention defects like a
+   broken belt loop or defective pairs.\n\n4. **Style and Design:
+   ** Customers appreciate the classic and timeless style of the Levi's
+    501 jeans, with some expressing frustration over the lack of plain options
+    in women's styles.\n\n5. **Sizing and Consistency:** There are comments on sizing
+    discrepancies, with some stating that the jeans run smaller than expected,
+    leading to the need to size up for a better fit.\n\n**Overall Sentiment:**\n
+    The average rating of approximately 4 stars indicates a generally positive sentiment
+    towards Levi's 501 jeans. Customers appreciate the classic style, durability, and fit of
+    the jeans. However, concerns about quality control issues, sizing discrepancies, and material
+    transparency have been raised by some customers, leading to a few lower ratings. \n\nIt is crucial for Levi's to address these quality control issues and ensure consistency in sizing to maintain customer satisfaction and loyalty. Moreover, clarifying shrinkage information and providing more variety in style options, especially for women, could help address some of the common concerns raised in the reviews.", role='assistant', function_call=None, tool_calls=None)
+
+这段文本是对Levi's 501牛仔裤的评论进行的综合分析和总结。以下是内容的概述：
+
+**关键主题：**
+1. **合身与舒适：** 许多评论强调了Levi's 501牛仔裤的良好合身和舒适度，一些评论提到裤子在正确的位置非常合身。
+
+2. **缩水与材质：** 关于缩水的体验有好有坏，一些人提到洗后缩水严重，而其他人则欣赏面料的坚固和耐用性。
+
+3. **质量问题：** 常见的问题包括质量控制不佳，如糟糕的缝合线、粗糙的边缘、断裂的腰带环和轻薄、透明的材质。有些评论者提到像断裂的腰带环或有缺陷的裤子这样的问题。
+
+4. **款式与设计：** 顾客欣赏Levi's 501牛仔裤的经典且永恒的风格，但也有人对女性款式缺乏简约选项表示失望。
+
+5. **尺寸与一致性：** 有关尺寸不一致的评论，一些人表示牛仔裤比预期的要小，需要选择更大一号的尺寸以便更好地合身。
+
+**总体情绪：**
+平均大约4星的评分表明对Levi's 501牛仔裤的总体感觉是积极的。顾客欣赏这些牛仔裤的经典款式、耐用性和合身感。然而，一些顾客也提出了关于质量控制问题、尺寸不一致和材质透明度的担忧，这导致了一些较低的评分。
+
+文本中提到，为了保持顾客的满意度和忠诚度，Levi's需要解决这些质量控制问题并确保尺寸的一致性。此外，明确缩水信息并为女性提供更多款式选择，可能有助于解决一些常见的问题。
