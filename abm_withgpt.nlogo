@@ -15,54 +15,80 @@ breed [agent3 Elite]
 breed [agent4 assistant]
 
 
+
 agent1-own [personality
 knowledge
-name]
-agent2-own [personality
+name
+promptself
+calm
+]
+
+agent2-own [
+personality
 knowledge
-name]
+name
+promptself
+]
+
 agent3-own[personality
 knowledge
-name]
+name
+promptself
+calm
+]
+
 agent4-own[personality
 knowledge
-name]
+name
+promptself
+]
 
 
 to setup
   clear-all
   py:setup py:python3
-  set memory ["Here’s a product that’s reasonably priced and of mixed quality"]
-
+  set memory ["a car"]
   create-agent1 1[
   setxy random-xcor random-ycor
-  set personality "You are a user，Eager to find suitable products."
+  set personality "You are a user，eager to find suitable products, gives simpler results,remain neutral."
   set name "Sophia"
+  set promptself prompt
+  set calm 5
   set knowledge []
   set shape "person student"
+
   ]
   create-agent2 1[
   setxy random-xcor random-ycor
-  set personality "You are a scoundrel and want to post negative comments without any logic."
+  set personality "You are a scoundrel and want to post negative comments without any logic,give as much product details as possible."
   set name "Lily"
   set shape "person"
+  set promptself "Play a user and evaluate possible aspects of the product in the first person. For example, if the product is a pair of jeans, you could evaluate it in terms of fabric, size, price, aesthetics, comfort, season, etc. Give possible details such as: Expand your imagination by commenting on the stylish black and white striped design of the jeans, or the comfort of the fiber, etc. For example: I love these jeans, I love the black and white striped design! Star pattern! The size is also very suitable! The main price is very favorable. Don’t list points, just use one sentence, no more than 80 words"
   set color [0 0 255]
   set knowledge []
+
   ]
   create-agent3 1[
   setxy random-xcor random-ycor
-  set personality "You are an elite, use logical analysis to analyze comments, and give very rational answers."
+  set personality "You are an elite, use logical analysis to analyze comments, and give very rational answers,contains more rigorous and complex reasoning processes,remain neutral."
   set name "Ethan"
+  set promptself prompt
+  set calm 5
   set knowledge []
   set shape "person graduate"
+
   ]
   create-agent4 1[
   setxy random-xcor random-ycor
-  set personality "You are an assistant and want to post positive comments without any logic."
+  set personality "You are an assistant and want to post positive comments without any logic,give as much product details as possible."
   set name "Alexander"
+  set promptself "Play a user and evaluate possible aspects of the product in the first person. For example, if the product is a pair of jeans, you could evaluate it in terms of fabric, size, price, aesthetics, comfort, season, etc. Give possible details such as: Expand your imagination by commenting on the stylish black and white striped design of the jeans, or the comfort of the fiber, etc. For example: I love these jeans, I love the black and white striped design! Star pattern! The size is also very suitable! The main price is very favorable. Don’t list points, just use one sentence, no more than 80 words"
+
   set shape "person"
   set color [255 0 0]
   set knowledge []
+
+
   ]
 
   reset-ticks
@@ -71,34 +97,38 @@ end
 
 to go
   tick
-  let random-number random 10
+  let random-number random 100
   ask agent4 [
     walk
-    if ticks mod 3 = 0[
-      if random-number < 7[
+    if ticks mod 6 = 0[
+      if random-number < 51[
         communication
       ]
     ]
   ]
   ask agent2 [
     walk
-    if ticks mod 3 = 0[
-      if random-number > 7[
+    if ticks mod 6 = 0[
+      if random-number > 51[
         communication
       ]
     ]
   ]
   ask agent3[
+    set calm calm - 1
     walk
     let colliding any? other turtles with [breed != "agnet3" and distance myself < collision-radius]
-    if colliding [
+    if colliding and calm <= 0 [
+      set calm 5
       communication
     ]
   ]
   ask agent1[
+    set calm calm - 1
     walk
-       let colliding any? other turtles with [breed != "agnet4" and distance myself < collision-radius]
-    if colliding [
+       let colliding any? other turtles with [breed != "agnet1" and distance myself < collision-radius]
+    if colliding and calm <= 0 [
+      set calm 5
       communication
     ]
   ]
@@ -109,12 +139,35 @@ to check-collision
 
   ]
 end
+to-report format-text [text]
+  py:set "text" text
+  py:set "line_width" line_width
+  (py:run
+    "def format_text(text,line_width):"
+    "    count=0"
+    "    text_list=[]"
+    "    text=text.split()"
+    "    current_count=0"
+    "    for c in range(len(text)):"
+    "        count+=1"
+    "        if(count%line_width==0):"
+    "            text_list.append(' '.join(text[current_count:count]))"
+    "            current_count=count"
+    "    text=' /n '.join(text_list)"
+    "    return text"
+    )
+  let result py:runresult "format_text(text,line_width)"
+  report result
+end
 
 to communication
+
+  show (knowledge)
   let new_comment item (length memory - 1) memory
   set knowledge lput new_comment knowledge
   let review gpt
-  set memory lput review memory
+  let aug_review aug_gpt review
+  set memory lput aug_review memory
   output-print (word name ":" review "\n")
 
 end
@@ -128,42 +181,74 @@ end
 to-report list_to_string [my_list]
 report reduce sentence my_list
 end
+
 to-report gpt
+
   py:set "knowledge" last-five knowledge
-  py:set "prompt" prompt
+  py:set "prompt" promptself
   py:set "personality" personality
-  py:set "max_tokens" max_tokens
-  py:set "temperature" temperature
-  py:set "frequency_penalty" frequency_penalty
-  py:set "presence_penalty" presence_penalty
+  py:set "max_token" max_tokens
+  py:set "temperature_v" temperature
+  py:set "frequency_p" frequency_penalty
+  py:set "presence_p" presence_penalty
   py:run "from openai import OpenAI"
   (py:run
     "def list_to_str(knowledge):"
     "    return '; '.join(map(str, knowledge))"
   )
   py:set "comments" py:runresult"list_to_str(knowledge)"
-  py:run "client = OpenAI(api_key=' ### ')"
+  py:run "client = OpenAI(api_key='###')"
   (py:run
     "def generate_review(comments):"
     "    input_text = comments + prompt"
     "    response = client.chat.completions.create("
     "    model='gpt-3.5-turbo',"
     "    messages=[{'role': 'system', 'content': personality},{'role': 'user', 'content': input_text}],"
-    "    max_tokens=max_tokens,"
-    "    temperature=temperature,"
+    "    max_tokens=max_token,"
+    "    temperature=temperature_v,"
     "    top_p=0.1,"
-    "    frequency_penalty=frequency_penalty,"
-    "    presence_penalty=presence_penalty)"
+    "    frequency_penalty=frequency_p,"
+    "    presence_penalty=presence_p)"
     "    return response.choices[0].message"
     )
 
-  let review py:runresult "generate_review(comments).content "
-  report review
+  report py:runresult "generate_review(comments).content"
 end
 
+to-report aug_gpt [comments]
+  py:set "prompt" "Analyze the arguments in the sentences and list only the arguments in one sentence, with a maximum of 10 words per argument."
+  py:set "max_token" max_tokens
+  py:set "temperature_v" temperature
+  py:set "frequency_p" frequency_penalty
+  py:set "presence_p" presence_penalty
+  py:run "from openai import OpenAI"
+  (py:run
+    "def list_to_str(knowledge):"
+    "    return '; '.join(map(str, knowledge))"
+  )
+  py:set "comments" comments
+  py:run "client = OpenAI(api_key='###')"
+  (py:run
+    "def generate_review(comments):"
+    "    input_text = comments + prompt"
+    "    response = client.chat.completions.create("
+    "    model='gpt-3.5-turbo',"
+    "    messages=[{'role': 'system', 'content': personality},{'role': 'user', 'content': input_text}],"
+    "    max_tokens=max_token,"
+    "    temperature=temperature_v,"
+    "    top_p=0.1,"
+    "    frequency_penalty=frequency_p,"
+    "    presence_penalty=presence_p)"
+    "    return response.choices[0].message"
+    )
+
+  report py:runresult "generate_review(comments).content"
+end
+
+
 to-report last-five [input-list]
-  ifelse length input-list > 5[
-  report sublist input-list (length input-list - 5) (length input-list)
+  ifelse length input-list > 8[
+  report sublist input-list (length input-list - 8) (length input-list)
   ]
   [
     report input-list
@@ -204,7 +289,7 @@ BUTTON
 96
 NIL
 go\n
-NIL
+T
 1
 T
 OBSERVER
@@ -216,9 +301,9 @@ NIL
 
 BUTTON
 16
-20
+19
 82
-53
+52
 NIL
 setup\n
 NIL
@@ -237,7 +322,7 @@ INPUTBOX
 467
 412
 prompt
-\"Based on past reviews, think about the pros and cons of the product and post your own review\n, and express how your argument was generated, for example:\nThis is a nice item and the quality is good as one of the reviews mentioned that the item is of good quality.\"\nDon't list pros and cons just make a sentence to explain.Which less than 100 words.\n
+Referring to the arguments above, play a role that thinks about the product description from a first-person perspective and come up with your own comments and new arguments.    In parentheses, you use reasoning to show how your argument arises, providing as much detail as possible.\nFor example:\n\"I like these jeans very much. The fabric is good, the size fits well, and the style is also very trendy (because some reviews said the quality is good. Quality can be measured in terms of fabric, workmanship, size, etc.) I saw someone saying it feels very comfortable to the touch. I I guess it’s because the fabric is good, and some people commented that the star logo is very eye-catching and makes the style look very fashionable).\nanother example:\n“Bad review, these jeans are too tight, difficult to move around, and very expensive (as some reviews mentioned the price is beyond imagination)”\nInstead of listing pros and cons, why not create a sentence to explain it.  Answers can be short or long, up to 150 words.
 1
 1
 String
@@ -245,7 +330,7 @@ String
 OUTPUT
 468
 38
-1655
+1670
 735
 12
 
@@ -305,7 +390,7 @@ frequency_penalty
 frequency_penalty
 -2.0
 2.0
-1.5
+2.0
 0.1
 1
 NIL
@@ -320,7 +405,7 @@ temperature
 temperature
 0
 2
-0.7
+1.0
 0.1
 1
 NIL
@@ -335,8 +420,23 @@ presence_penalty
 presence_penalty
 -2
 2
-1.0
+2.0
 0.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+0
+672
+172
+705
+line_width
+line_width
+0
+40
+20.0
+5
 1
 NIL
 HORIZONTAL
